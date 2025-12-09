@@ -7,7 +7,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 
-# Import from the finder module
+# 从 finder 模块导入
 from src.applemusic.finder import (
     get_audio_metadata_full,
     search_apple_music,
@@ -18,7 +18,7 @@ from src.applemusic.finder import (
 )
 
 def init_driver():
-    """Initialize a shared Selenium driver."""
+    """初始化共享的 Selenium 驱动。"""
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
@@ -31,70 +31,70 @@ def init_driver():
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
         return driver
     except Exception as e:
-        print(f"Failed to initialize Selenium driver: {e}")
+        print(f"初始化 Selenium 驱动失败: {e}")
         return None
 
 def process_file(file_path, driver, current_collection_id):
     """
-    Process a single file.
-    Returns: The collectionId of the selected track (if any), or None.
+    处理单个文件。
+    返回: 选中曲目的 collectionId (如果有)，否则返回 None。
     """
-    print(f"\nProcessing: {os.path.basename(file_path)}")
+    print(f"\n正在处理: {os.path.basename(file_path)}")
     
-    # 1. Read local metadata
+    # 1. 读取本地元数据
     local_meta = get_audio_metadata_full(file_path)
     if not local_meta:
         return None
 
-    # 2. Search
-    print(f"Searching: {local_meta['title']} {local_meta['artist']} ...")
+    # 2. 搜索
+    print(f"正在搜索: {local_meta['title']} {local_meta['artist']} ...")
     results = search_apple_music(local_meta)
     
     if not results:
-        print("No results found.")
+        print("未找到结果。")
         return None
 
     selected = None
     
-    # 3. Match Logic
+    # 3. 匹配逻辑
     if current_collection_id:
-        # Filter results by collectionId
+        # 按 collectionId 过滤结果
         matches = [r for r in results if r.get('collectionId') == current_collection_id]
         
         if len(matches) == 1:
             selected = matches[0]
-            print(f"Auto-matched: {selected.get('trackName')} (Album: {selected.get('collectionName')})")
+            print(f"自动匹配: {selected.get('trackName')} (专辑: {selected.get('collectionName')})")
         elif len(matches) > 1:
-            print(f"Multiple matches found in the same album ({current_collection_id}):")
+            print(f"在同一专辑中找到多个匹配项 ({current_collection_id}):")
             for i, item in enumerate(matches, 1):
                 print(f"[{i}] {item.get('trackName')} - {item.get('artistName')}")
             
-            choice = input(f"Select (1-{len(matches)}) or 0 to skip [Default: 1]: ")
+            choice = input(f"请选择 (1-{len(matches)}) 或输入 0 跳过 [默认 1]: ")
             if choice.strip() == "": choice = "1"
             if choice.isdigit() and int(choice) > 0 and int(choice) <= len(matches):
                 selected = matches[int(choice) - 1]
             else:
-                print("Skipped.")
+                print("已跳过。")
                 return None
         else:
-            print("No match found in the current album. Showing all results:")
-            # Fallback to showing all results
+            print("当前专辑中未找到匹配项。显示所有结果:")
+            # 回退到显示所有结果
             for i, item in enumerate(results, 1):
                 print(f"[{i}] {item.get('trackName')} - {item.get('artistName')} ({item.get('collectionName')})")
             
-            choice = input(f"Select (1-{len(results)}) or 0 to skip [Default: 1]: ")
+            choice = input(f"请选择 (1-{len(results)}) 或输入 0 跳过 [默认 1]: ")
             if choice.strip() == "": choice = "1"
             if choice.isdigit() and int(choice) > 0 and int(choice) <= len(results):
                 selected = results[int(choice) - 1]
             else:
                 return None
     else:
-        # First file (or no album set yet)
-        print("Please select the correct track/album:")
+        # 第一个文件 (或尚未设置专辑)
+        print("请选择正确的歌曲/专辑:")
         for i, item in enumerate(results, 1):
             print(f"[{i}] {item.get('trackName')} - {item.get('artistName')} ({item.get('collectionName')})")
         
-        choice = input(f"Select (1-{len(results)}) or 0 to skip [Default: 1]: ")
+        choice = input(f"请选择 (1-{len(results)}) 或输入 0 跳过 [默认 1]: ")
         if choice.strip() == "": choice = "1"
         if choice.isdigit() and int(choice) > 0 and int(choice) <= len(results):
             selected = results[int(choice) - 1]
@@ -104,11 +104,11 @@ def process_file(file_path, driver, current_collection_id):
     if not selected:
         return None
 
-    # 4. Scrape details
+    # 4. 抓取详情
     track_url = selected.get('trackViewUrl')
     web_details = scrape_web_details_selenium(track_url, driver=driver)
     
-    # 5. Prepare remote meta
+    # 5. 准备远程元数据
     composer_str = "/".join(web_details['composers']) if web_details['composers'] else ""
     lyricist_str = "/".join(web_details['lyricists']) if web_details['lyricists'] else ""
     
@@ -121,36 +121,36 @@ def process_file(file_path, driver, current_collection_id):
         'copyright': web_details['copyright']
     }
 
-    # 6. Merge
+    # 6. 合并
     final_meta = merge_metadata(local_meta, remote_meta)
     
-    # 7. Write
-    print("Writing metadata...")
+    # 7. 写入
+    print("正在写入元数据...")
     if write_tags(file_path, final_meta):
-        print("Success.")
+        print("成功。")
     else:
-        print("Failed.")
+        print("失败。")
         
     return selected.get('collectionId')
 
 def main():
-    parser = argparse.ArgumentParser(description="Batch Apple Music Tagger")
-    parser.add_argument("folder_path", help="Folder containing audio files")
+    parser = argparse.ArgumentParser(description="Apple Music 批量标签工具")
+    parser.add_argument("folder_path", help="包含音频文件的文件夹")
     args = parser.parse_args()
     
     folder = args.folder_path.strip().strip("'").strip('"')
     if not os.path.exists(folder):
-        print("Folder not found.")
+        print("文件夹未找到。")
         return
 
     files = [f for f in os.listdir(folder) if f.lower().endswith(('.mp3', '.flac', '.m4a', '.mp4'))]
     files.sort()
     
     if not files:
-        print("No supported audio files found.")
+        print("未找到支持的音频文件。")
         return
         
-    print(f"Found {len(files)} files. Initializing Selenium...")
+    print(f"找到 {len(files)} 个文件。正在初始化 Selenium...")
     driver = init_driver()
     if not driver:
         return
@@ -160,21 +160,21 @@ def main():
     try:
         for i, filename in enumerate(files):
             file_path = os.path.join(folder, filename)
-            print(f"\n[{i+1}/{len(files)}] Processing {filename}...")
+            print(f"\n[{i+1}/{len(files)}] 正在处理 {filename}...")
             
-            # If we haven't set an album yet, this file will determine it.
-            # If we have, we try to match against it.
+            # 如果尚未设置专辑，此文件将决定专辑。
+            # 如果已设置，我们尝试匹配它。
             
             result_collection_id = process_file(file_path, driver, current_collection_id)
             
             if result_collection_id and current_collection_id is None:
                 current_collection_id = result_collection_id
-                print(f"\n>>> Album set to ID: {current_collection_id}")
+                print(f"\n>>> 专辑 ID 已设置为: {current_collection_id}")
                 
     except KeyboardInterrupt:
-        print("\nBatch processing interrupted.")
+        print("\n批量处理已中断。")
     finally:
-        print("Closing driver...")
+        print("正在关闭驱动...")
         driver.quit()
 
 if __name__ == "__main__":

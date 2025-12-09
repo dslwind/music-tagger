@@ -13,13 +13,14 @@ class AudioFileHandler:
 
     def load_file(self):
         if not os.path.exists(self.filepath):
-            raise FileNotFoundError(f"File not found: {self.filepath}")
+            raise FileNotFoundError(f"文件未找到: {self.filepath}")
         
         try:
-            # Auto-detect file type
+            # 自动检测文件类型
             self.audio = mutagen.File(self.filepath, easy=True)
             if self.audio is None:
-                # Fallback for specific types if auto-detect fails or returns None
+                # 如果自动检测失败或返回 None，则针对特定类型进行回退
+
                 if self.filepath.lower().endswith('.mp3'):
                     self.audio = MP3(self.filepath, ID3=EasyID3)
                 elif self.filepath.lower().endswith('.flac'):
@@ -27,16 +28,16 @@ class AudioFileHandler:
                 elif self.filepath.lower().endswith('.ogg'):
                     self.audio = OggVorbis(self.filepath)
                 else:
-                    raise ValueError("Unsupported file format")
+                    raise ValueError("不支持的文件格式")
         except Exception as e:
-            raise ValueError(f"Error loading file: {e}")
+            raise ValueError(f"加载文件出错: {e}")
 
     def get_tags(self):
-        """Returns a dictionary of common tags."""
+        """返回通用标签字典。"""
         if not self.audio:
             return {}
         
-        # Helper to safely get first item
+        # 辅助函数：安全获取第一项
         def get_first(key, default=''):
             return self.audio.get(key, [default])[0]
 
@@ -57,8 +58,8 @@ class AudioFileHandler:
 
     def update_tags(self, metadata):
         """
-        Updates tags with the provided metadata dictionary.
-        metadata keys should match standard tag names (title, artist, album, etc.)
+        使用提供的元数据字典更新标签。
+        metadata 键应匹配标准标签名称 (title, artist, album 等)
         """
         if not self.audio:
             return
@@ -68,4 +69,4 @@ class AudioFileHandler:
                 self.audio[key] = value
         
         self.audio.save()
-        print(f"Tags updated for {self.filepath}")
+        print(f"标签已更新: {self.filepath}")

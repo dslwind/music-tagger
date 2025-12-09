@@ -174,7 +174,7 @@ def merge_metadata(local, remote):
 def display_diff(local, final):
     """展示变更对比"""
     print("\n" + "="*25 + " 修改预览 " + "="*25)
-    print(f"{'字段':<12} | {'原值 (Local)':<25} | {'新值 (Wait to Write)'}")
+    print(f"{'字段':<12} | {'原值 (Local)':<25} | {'新值 (待写入)'}")
     print("-" * 80)
     
     keys = ['title', 'artist', 'album', 'composer', 'lyricist', 'copyright']
@@ -208,7 +208,7 @@ def write_tags(file_path, meta):
             except ID3NoHeaderError:
                 tags = ID3()
             
-            # 使用 v2.3 编码 (UTF-16 usually)
+            # 使用 v2.3 编码 (通常为 UTF-16)
             tags.add(TIT2(encoding=3, text=meta['title']))
             tags.add(TPE1(encoding=3, text=meta['artist']))
             tags.add(TALB(encoding=3, text=meta['album']))
@@ -228,7 +228,7 @@ def write_tags(file_path, meta):
             audio['copyright'] = meta['copyright']
             audio.save()
 
-        # === M4A/MP4 (核心修改) ===
+        # === M4A/MP4 ===
         elif ext in ['.m4a', '.mp4']:
             audio = MP4(file_path)
             audio['\xa9nam'] = meta['title']
