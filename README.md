@@ -1,80 +1,107 @@
 # Music Tagger (音乐标签工具)
 
-这是一个用于自动抓取和写入音乐文件元数据的工具。支持从 **MusicBrainz** 和 **Apple Music** 获取数据。
+自动化的音乐文件元数据 tagging 工具，支持从 **MusicBrainz** 和 **Apple Music** 获取详细的元数据信息。
 
 ## 功能特点
 
-- **MusicBrainz Tagger**: 从 MusicBrainz 数据库搜索并获取详细的元数据（标题、艺术家、专辑、Track ID 等）。
-- **Apple Music Tagger**: 从 Apple Music (香港区) 抓取元数据，支持获取详细的幕后制作人员信息（作曲、作词）。
-- **批量处理**: 支持对整个文件夹进行批量扫描和自动匹配（基于 Apple Music）。
-- **智能匹配**: 批量模式下，首个文件确认专辑后，后续文件会自动尝试匹配同一专辑内的歌曲。
+- **MusicBrainz Tagger**: 从 MusicBrainz 数据库获取标准元数据（标题、艺术家、专辑、MBID 等）
+- **Apple Music Tagger**: 从 Apple Music (香港区) 抓取元数据，包括幕后制作人员（作曲、作词）
+- **批量处理**: 支持对整个文件夹进行批量扫描和智能匹配
+- **模块化设计**: 清晰的代码结构，易于扩展和维护
 
-## 环境要求
-
-- Python 3.8+
-- Google Chrome 浏览器 (用于 Apple Music 抓取)
+## 快速开始
 
 ### 安装依赖
 
-请确保安装了以下 Python 库：
-
 ```bash
-pip install mutagen musicbrainzngs requests beautifulsoup4 selenium webdriver-manager
+pip install -r requirements.txt
 ```
 
-## 使用说明
+### 使用示例
 
-本项目包含三个主要的入口脚本：
-
-### 1. MusicBrainz 单曲标签
-
-使用 MusicBrainz 数据库搜索并标记单个文件。
+#### 1. MusicBrainz 单曲标签
 
 ```bash
-python run_mb.py "文件路径"
+python run_mb.py "path/to/song.mp3"
 ```
 
-### 2. Apple Music 单曲标签
-
-使用 Apple Music 搜索并标记单个文件。
+#### 2. Apple Music 单曲标签
 
 ```bash
-python run_am.py "文件路径"
+python run_am.py "path/to/song.mp3"
 ```
 
-### 3. Apple Music 批量标签
-
-批量处理一个文件夹内的所有音频文件。
+#### 3. Apple Music 批量标签
 
 ```bash
-python run_am_batch.py "文件夹路径"
+python run_am_batch.py "path/to/folder"
 ```
 
-**批量模式逻辑：**
-1.  程序会扫描文件夹内的所有支持文件 (.mp3, .flac, .m4a, .mp4)。
-2.  **第一个文件**：程序会进行搜索，并要求用户从结果中选择正确的专辑/歌曲。
-3.  **后续文件**：程序会自动在已确认的专辑中查找匹配的歌曲。
-    -   如果找到唯一匹配，自动处理。
-    -   如果找到多个匹配（例如同名歌曲），会提示用户选择。
-    -   如果未找到匹配，会回退到全局搜索并提示用户。
-4.  **默认选择**：在选择列表时，直接按回车键默认选择第 1 项。
+**批量模式工作流程：**
+1. 扫描文件夹内所有支持的音频文件 (.mp3, .flac, .m4a, .mp4)
+2. 第一个文件：用户选择正确的专辑/歌曲
+3. 后续文件：自动匹配同一专辑内的歌曲
+   - 唯一匹配：自动处理
+   - 多个匹配：提示用户选择
+   - 无匹配：回退到全局搜索
 
 ## 项目结构
 
 ```
 tagger/
 ├── src/
-│   ├── common/          # 通用模块 (音频文件处理)
-│   ├── musicbrainz/     # MusicBrainz 相关逻辑
-│   └── applemusic/      # Apple Music 相关逻辑 (含 Selenium 爬虫)
-├── run_mb.py            # MusicBrainz 入口
-├── run_am.py            # Apple Music 单曲入口
-├── run_am_batch.py      # Apple Music 批量入口
-└── README.md            # 说明文档
+│   ├── __init__.py          # 包初始化，导出配置
+│   ├── config.py            # 集中配置管理
+│   ├── common/
+│   │   ├── __init__.py
+│   │   └── audio.py         # 音频文件处理通用接口
+│   ├── musicbrainz/
+│   │   ├── __init__.py
+│   │   ├── client.py        # MusicBrainz API 客户端
+│   │   └── cli.py           # MusicBrainz CLI
+│   └── applemusic/
+│       ├── __init__.py
+│       ├── finder.py        # Apple Music 搜索和抓取
+│       └── batch.py         # 批量处理逻辑
+├── run_mb.py                # MusicBrainz 入口
+├── run_am.py                # Apple Music 单曲入口
+├── run_am_batch.py          # Apple Music 批量入口
+├── requirements.txt         # Python 依赖
+└── README.md               # 文档
 ```
+
+## 重构亮点
+
+### 1. 配置集中化 (`src/config.py`)
+- 使用 dataclass 管理所有配置项
+- 统一的常量定义（API URL、关键词、文件格式等）
+- 易于自定义和扩展
+
+### 2. 类型注解
+- 全面的类型提示，提高代码可读性
+- 更好的 IDE 支持和错误检测
+
+### 3. 模块化设计
+- 清晰的职责分离
+- 可复用的工具函数
+- 便于单元测试
+
+### 4. 代码质量改进
+- 移除魔法字符串
+- 统一的错误处理
+- 详细的文档字符串
+
+## 环境要求
+
+- Python 3.8+
+- Google Chrome 浏览器 (用于 Apple Music 抓取)
 
 ## 注意事项
 
-- Apple Music 抓取依赖于 Selenium 和 Chrome 浏览器，运行时会启动一个无头 (Headless) Chrome 实例。
-- 首次运行可能需要下载 ChromeDriver，请保持网络连接。
-- 批量处理时，Selenium 实例会被复用以提高速度。
+- Apple Music 抓取依赖 Selenium 和 Chrome，首次运行会自动下载 ChromeDriver
+- 批量处理时会复用 Selenium 实例以提高效率
+- 所有脚本都支持 `--help` 查看使用说明
+
+## License
+
+MIT
