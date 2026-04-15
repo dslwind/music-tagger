@@ -1,15 +1,44 @@
+"""MusicBrainz API 客户端"""
+
 import musicbrainzngs
+from typing import Optional, List, Dict, Any
+
+from src.config import Settings
+
 
 class MusicBrainzClient:
-    def __init__(self, app_name="MusicTagger", version="0.1", contact="user@example.com"):
-        self.setup(app_name, version, contact)
-
-    def setup(self, app_name, version, contact):
-        musicbrainzngs.set_useragent(app_name, version, contact)
-
-    def search_recording(self, title, artist=None, album=None, limit=5):
+    """MusicBrainz API 客户端封装"""
+    
+    def __init__(self, settings: Optional[Settings] = None):
+        self.settings = settings or Settings.get_default()
+        self.setup()
+    
+    def setup(self):
+        """配置 MusicBrainz 用户代理"""
+        musicbrainzngs.set_useragent(
+            self.settings.musicbrainz_app_name,
+            self.settings.musicbrainz_version,
+            self.settings.musicbrainz_contact
+        )
+    
+    def search_recording(
+        self, 
+        title: str, 
+        artist: Optional[str] = None,
+        album: Optional[str] = None,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
         """
-        根据标题以及可选的艺术家/专辑搜索录音。
+        搜索录音
+        
+        Args:
+            title: 歌曲标题
+            artist: 艺术家名称（可选）
+            album: 专辑名称（可选）
+            limit: 返回结果数量限制
+            
+        Returns:
+            录音列表
         """
         query_parts = [f'recording:"{title}"']
         if artist:
@@ -23,16 +52,25 @@ class MusicBrainzClient:
             result = musicbrainzngs.search_recordings(query=query, limit=limit)
             return result.get('recording-list', [])
         except Exception as e:
-            print(f"搜索 MusicBrainz 出错: {e}")
+            print(f"搜索 MusicBrainz 出错：{e}")
             return []
-
-    def get_release_info(self, release_id):
+    
+    def get_release_info(self, release_id: str) -> Optional[Dict[str, Any]]:
         """
-        获取特定发行的详细信息。
+        获取发行详细信息
+        
+        Args:
+            release_id: 发行 ID
+            
+        Returns:
+            发行信息字典
         """
         try:
-            result = musicbrainzngs.get_release_by_id(release_id, includes=['recordings', 'artists'])
+            result = musicbrainzngs.get_release_by_id(
+                release_id, 
+                includes=['recordings', 'artists']
+            )
             return result.get('release', {})
         except Exception as e:
-            print(f"获取发行信息出错: {e}")
+            print(f"获取发行信息出错：{e}")
             return None
