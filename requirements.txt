@@ -1,6 +1,20 @@
-mutagen
-musicbrainzngs
-requests
-beautifulsoup4
-selenium
-webdriver-manager
+# 音频文件处理
+mutagen>=1.47.0
+
+# API 请求
+requests>=2.28.0
+musicbrainzngs>=0.7.1
+
+# 网页抓取
+beautifulsoup4>=4.12.0
+selenium>=4.15.0
+webdriver-manager>=4.0.0
+
+# 配置文件
+pyyaml>=6.0
+
+# GUI
+PyQt6>=6.5.0
+
+# 测试
+pytest>=7.0.0

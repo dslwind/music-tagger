@@ -2,6 +2,9 @@ import argparse
 import os
 from src.common.audio import AudioFileHandler
 from src.musicbrainz.client import MusicBrainzClient
+from src.utils import get_logger
+
+logger = get_logger(__name__)
 
 def main():
     parser = argparse.ArgumentParser(description="Music Tagger 命令行工具")
@@ -10,6 +13,7 @@ def main():
 
     filepath = args.path
     if not os.path.exists(filepath):
+        logger.error(f"文件未找到: {filepath}")
         print(f"文件未找到: {filepath}")
         return
 
@@ -19,6 +23,7 @@ def main():
         current_tags = handler.get_tags()
         print(f"当前标签: {current_tags}")
     except Exception as e:
+        logger.error(f"加载文件出错: {e}")
         print(f"加载文件出错: {e}")
         return
 

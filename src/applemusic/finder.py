@@ -4,10 +4,6 @@ import sys
 import argparse
 import requests
 import mutagen
-from mutagen.easyid3 import EasyID3
-from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCOM, TCOP, TEXT, ID3NoHeaderError
-from mutagen.flac import FLAC
-from mutagen.mp4 import MP4
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs, urlunparse
 
@@ -19,6 +15,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+
+from src.utils import get_logger, get_config
+from src.common import TagWriterFactory
+
+logger = get_logger(__name__)
 
 # ================= 工具函数 =================
 
@@ -43,6 +44,7 @@ def get_audio_metadata_full(file_path):
     读取本地音频文件的详细元数据，用于后续的'保留原值'逻辑
     """
     if not os.path.exists(file_path):
+        logger.error(f"文件不存在 -> {file_path}")
         print(f"错误: 文件不存在 -> {file_path}")
         return None
     
@@ -71,49 +73,65 @@ def get_audio_metadata_full(file_path):
             
         return meta
     except Exception as e:
-        print(f"读取本地元数据出错: {e}")
+        logger.error(f"读取本地元数据出错: {e}")
         # 出错时返回基础字典，避免程序崩溃
         return meta
 
 def search_apple_music(query_meta):
-    base_url = "https://itunes.apple.com/search"
+    config = get_config()
+    api_url = config.get('apple_music', 'api_url', default='https://itunes.apple.com/search')
+    country = config.get('apple_music', 'country', default='HK')
+    limit = config.get('apple_music', 'search_limit', default=5)
+
     search_term = f"{query_meta['title']} {query_meta['artist']}"
-    # 优先搜索香港区 (HK) 以获得中文支持
-    params = {"term": search_term, "media": "music", "entity": "song", "limit": 5, "country": "HK"}
+    params = {"term": search_term, "media": "music", "entity": "song", "limit": limit, "country": country}
     try:
-        res = requests.get(base_url, params=params, timeout=10)
+        res = requests.get(api_url, params=params, timeout=10)
         res.raise_for_status()
         return res.json().get('results', [])
     except Exception as e:
-        print(f"搜索出错: {e}")
+        logger.error(f"搜索出错: {e}")
         return []
 
 def scrape_web_details_selenium(track_url, driver=None):
+    config = get_config()
     details = {'composers': [], 'lyricists': [], 'copyright': '', 'label': ''}
     target_url = convert_to_song_url(track_url)
     print(f"   -> 正在分析页面详情: {target_url}")
-    
+
     should_quit_driver = False
     if driver is None:
         should_quit_driver = True
         chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--mute-audio")
-        # 禁用图片加载以加快速度
-        prefs = {"profile.managed_default_content_settings.images": 2}
-        chrome_options.add_experimental_option("prefs", prefs)
-        chrome_options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
+
+        # 从配置读取 Selenium 选项
+        if config.get('selenium', 'headless', default=True):
+            chrome_options.add_argument("--headless")
+        if config.get('selenium', 'disable_gpu', default=True):
+            chrome_options.add_argument("--disable-gpu")
+        if config.get('selenium', 'mute_audio', default=True):
+            chrome_options.add_argument("--mute-audio")
+
+        if config.get('selenium', 'disable_images', default=True):
+            prefs = {"profile.managed_default_content_settings.images": 2}
+            chrome_options.add_experimental_option("prefs", prefs)
+
+        user_agent = config.get('selenium', 'user_agent')
+        if user_agent:
+            chrome_options.add_argument(f"user-agent={user_agent}")
+
         try:
             driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
         except Exception as e:
-            print(f"初始化 Selenium 失败: {e}")
+            logger.error(f"初始化 Selenium 失败: {e}")
             return details
+
+    page_timeout = config.get('selenium', 'page_timeout', default=10)
 
     try:
         driver.get(target_url)
         try:
-            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "artist-metadata")))
+            WebDriverWait(driver, page_timeout).until(EC.presence_of_element_located((By.CLASS_NAME, "artist-metadata")))
         except: pass
 
         soup = BeautifulSoup(driver.page_source, 'html.parser')
@@ -138,7 +156,7 @@ def scrape_web_details_selenium(track_url, driver=None):
         if footer: details['copyright'] = footer.get_text(strip=True)
             
     except Exception as e:
-        print(f"Selenium 抓取警告: {e}")
+        logger.warning(f"Selenium 抓取警告: {e}")
     finally:
         if should_quit_driver and driver:
             driver.quit()
@@ -198,63 +216,7 @@ def display_diff(local, final):
 
 def write_tags(file_path, meta):
     """写入标签 (仅写入文本，不处理封面)"""
-    ext = os.path.splitext(file_path)[1].lower()
-    
-    try:
-        # === MP3 (ID3v2.3) ===
-        if ext == '.mp3':
-            try:
-                tags = ID3(file_path)
-            except ID3NoHeaderError:
-                tags = ID3()
-            
-            # 使用 v2.3 编码 (通常为 UTF-16)
-            tags.add(TIT2(encoding=3, text=meta['title']))
-            tags.add(TPE1(encoding=3, text=meta['artist']))
-            tags.add(TALB(encoding=3, text=meta['album']))
-            tags.add(TCOM(encoding=3, text=meta['composer'])) 
-            tags.add(TEXT(encoding=3, text=meta['lyricist'])) 
-            tags.add(TCOP(encoding=3, text=meta['copyright'])) 
-            tags.save(file_path, v2_version=3)
-
-        # === FLAC ===
-        elif ext == '.flac':
-            audio = FLAC(file_path)
-            audio['title'] = meta['title']
-            audio['artist'] = meta['artist']
-            audio['album'] = meta['album']
-            audio['composer'] = meta['composer']
-            audio['lyricist'] = meta['lyricist']
-            audio['copyright'] = meta['copyright']
-            audio.save()
-
-        # === M4A/MP4 ===
-        elif ext in ['.m4a', '.mp4']:
-            audio = MP4(file_path)
-            audio['\xa9nam'] = meta['title']
-            audio['\xa9ART'] = meta['artist']
-            audio['\xa9alb'] = meta['album']
-            audio['\xa9wrt'] = meta['composer']
-            audio['cprt'] = meta['copyright']
-            
-            # 写入作词人到自定义原子 (兼容 Mp3tag)
-            if meta['lyricist']:
-                try:
-                    # Mutagen 要求自定义 tag 值为 bytes 列表
-                    audio['----:com.apple.iTunes:LYRICIST'] = [meta['lyricist'].encode('utf-8')]
-                except Exception as e:
-                    print(f" (M4A作词人写入警告: {e})", end="")
-
-            audio.save()
-
-        else:
-            print(f"暂不支持写入 {ext} 格式")
-            return False
-
-        return True
-    except Exception as e:
-        print(f"写入文件失败: {e}")
-        return False
+    return TagWriterFactory.write_tags(file_path, meta)
 
 # ================= 主程序 =================
 

@@ -5,6 +5,10 @@ from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
 from mutagen.oggvorbis import OggVorbis
 
+from src.utils import get_logger
+
+logger = get_logger(__name__)
+
 class AudioFileHandler:
     def __init__(self, filepath):
         self.filepath = filepath
@@ -30,6 +34,7 @@ class AudioFileHandler:
                 else:
                     raise ValueError("不支持的文件格式")
         except Exception as e:
+            logger.error(f"加载文件出错: {e}")
             raise ValueError(f"加载文件出错: {e}")
 
     def get_tags(self):
@@ -69,4 +74,4 @@ class AudioFileHandler:
                 self.audio[key] = value
         
         self.audio.save()
-        print(f"标签已更新: {self.filepath}")
+        logger.info(f"标签已更新: {self.filepath}")

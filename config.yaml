@@ -1,0 +1,48 @@
+# Music Tagger 配置文件
+
+# Apple Music 配置
+apple_music:
+  # 搜索区域 (HK=香港, TW=台湾, US=美国等)
+  country: "HK"
+  # 搜索结果数量限制
+  search_limit: 5
+  # API 基础 URL
+  api_url: "https://itunes.apple.com/search"
+
+# MusicBrainz 配置
+musicbrainz:
+  # 应用信息 (用于 API 标识)
+  app_name: "MusicTagger"
+  version: "0.1"
+  contact: "user@example.com"
+
+# Selenium 配置
+selenium:
+  # 是否使用无头模式
+  headless: true
+  # 是否禁用 GPU
+  disable_gpu: true
+  # 是否静音
+  mute_audio: true
+  # 是否禁用图片加载
+  disable_images: true
+  # User-Agent
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+  # 页面加载超时 (秒)
+  page_timeout: 10
+
+# 日志配置
+logging:
+  # 日志级别: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  # 是否输出到文件
+  file_enabled: false
+  # 日志文件路径 (如果启用)
+  file_path:"logs/music_tagger.log"
+
+# 支持的音频格式
+supported_formats:
+  - ".mp3"
+  - ".flac"
+  - ".m4a"
+  - ".mp4"

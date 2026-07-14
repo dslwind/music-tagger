@@ -24,7 +24,23 @@ pip install mutagen musicbrainzngs requests beautifulsoup4 selenium webdriver-ma
 
 ## 使用说明
 
-本项目包含三个主要的入口脚本：
+### GUI 图形界面（推荐）
+
+启动图形界面：
+
+```bash
+pip install PyQt6
+python run_gui.py
+```
+
+GUI 功能：
+- **Apple Music 标签页**: 单曲搜索和标签写入
+- **MusicBrainz 标签页**: MusicBrainz 数据库搜索
+- **批量处理标签页**: 文件夹批量处理
+
+### 命令行界面
+
+本项目包含三个主要的命令行入口脚本：
 
 ### 1. MusicBrainz 单曲标签
 
@@ -78,3 +94,50 @@ tagger/
 - Apple Music 抓取依赖于 Selenium 和 Chrome 浏览器，运行时会启动一个无头 (Headless) Chrome 实例。
 - 首次运行可能需要下载 ChromeDriver，请保持网络连接。
 - 批量处理时，Selenium 实例会被复用以提高速度。
+
+## 配置
+
+项目支持通过 `config.yaml` 进行配置。主要配置项：
+
+- `apple_music.country`: 搜索区域（默认 HK）
+- `apple_music.search_limit`: 搜索结果数量（默认 5）
+- `selenium.headless`: 是否无头模式（默认 true）
+- `logging.level`: 日志级别（默认 INFO）
+
+## 开发
+
+### 运行测试
+
+```bash
+pytest
+```
+
+### 项目结构
+
+```
+src/
+├── common/
+│   ├── audio.py        # 音频文件处理器
+│   └── writer.py       # 统一标签写入器
+├── musicbrainz/
+│   ├── client.py       # MusicBrainz API 客户端
+│   └── cli.py          # 命令行交互
+├── applemusic/
+│   ├── finder.py       # Apple Music 搜索与抓取
+│   └── batch.py        # 批量处理
+├── gui/
+│   ├── main_window.py  # 主窗口
+│   └── widgets/        # GUI 组件
+│       ├── apple_music_panel.py
+│       ├── musicbrainz_panel.py
+│       ├── batch_panel.py
+│       └── metadata_editor.py
+└── utils/
+    ├── logger.py       # 日志模块
+    └── config.py       # 配置模块
+tests/                   # 单元测试
+run_gui.py              # GUI 入口
+run_mb.py               # MusicBrainz 命令行入口
+run_am.py               # Apple Music 命令行入口
+run_am_batch.py         # 批量处理命令行入口
+```

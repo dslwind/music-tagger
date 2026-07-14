@@ -7,6 +7,10 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 
+from src.utils import get_logger, get_config
+
+logger = get_logger(__name__)
+
 # 从 finder 模块导入
 from src.applemusic.finder import (
     get_audio_metadata_full,
@@ -19,18 +23,30 @@ from src.applemusic.finder import (
 
 def init_driver():
     """初始化共享的 Selenium 驱动。"""
+    config = get_config()
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--mute-audio")
-    prefs = {"profile.managed_default_content_settings.images": 2}
-    chrome_options.add_experimental_option("prefs", prefs)
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
+
+    # 从配置读取选项
+    if config.get('selenium', 'headless', default=True):
+        chrome_options.add_argument("--headless")
+    if config.get('selenium', 'disable_gpu', default=True):
+        chrome_options.add_argument("--disable-gpu")
+    if config.get('selenium', 'mute_audio', default=True):
+        chrome_options.add_argument("--mute-audio")
+
+    if config.get('selenium', 'disable_images', default=True):
+        prefs = {"profile.managed_default_content_settings.images": 2}
+        chrome_options.add_experimental_option("prefs", prefs)
+
+    user_agent = config.get('selenium', 'user_agent')
+    if user_agent:
+        chrome_options.add_argument(f"user-agent={user_agent}")
     
     try:
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
         return driver
     except Exception as e:
+        logger.error(f"初始化 Selenium 驱动失败: {e}")
         print(f"初始化 Selenium 驱动失败: {e}")
         return None
 
@@ -134,16 +150,18 @@ def process_file(file_path, driver, current_collection_id):
     return selected.get('collectionId')
 
 def main():
+    config = get_config()
     parser = argparse.ArgumentParser(description="Apple Music 批量标签工具")
     parser.add_argument("folder_path", help="包含音频文件的文件夹")
     args = parser.parse_args()
-    
+
     folder = args.folder_path.strip().strip("'").strip('"')
     if not os.path.exists(folder):
         print("文件夹未找到。")
         return
 
-    files = [f for f in os.listdir(folder) if f.lower().endswith(('.mp3', '.flac', '.m4a', '.mp4'))]
+    supported_formats = tuple(config.get('supported_formats', default=['.mp3', '.flac', '.m4a', '.mp4']))
+    files = [f for f in os.listdir(folder) if f.lower().endswith(supported_formats)]
     files.sort()
     
     if not files:
